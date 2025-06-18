@@ -1,0 +1,16 @@
+# Secrets
+.env
+.env.*
+*.key
+*.pem
+
+# Dependencies
+node_modules/
+dist/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
