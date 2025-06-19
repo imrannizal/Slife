@@ -9,6 +9,7 @@ Frontend: React Native + Expo
 Backend: Express + PostgreSQL
 Backend Host: Railway + Beekeeper Studio (as DB client)
 Offline storage: AsyncStorage
-Auth: Google OAuth + JWT
+Auth: Google OAuth + JWT (Passport handles them)
 State management: Zustand
 UI: React Native Paper
+SecureStore
