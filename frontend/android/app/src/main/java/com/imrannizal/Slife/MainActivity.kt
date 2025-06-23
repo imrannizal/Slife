@@ -1,4 +1,4 @@
-package com.anonymous.Slife
+package com.imrannizal.Slife
 
 import android.os.Build
 import android.os.Bundle

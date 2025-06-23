@@ -2,27 +2,26 @@
   "expo": {
     "scheme": "SlifeOfLife",
     "name": "Slife",
-    "slug": "Slife",
+    "slug": "slife",
+    "originalFullName": "@imrannizal/Slife",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/bird-slife.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/bird-slife.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
-    "ios": {
-      "supportsTablet": true
-    },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": ". /assets/adaptive-icon.png",
+        "foregroundImage": "./assets/bird-slife.png",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.anonymous.Slife"
+      "package": "com.imrannizal.Slife",
+      "GoogleServicesFile": "./google-services.json"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -30,7 +29,16 @@
     "plugins": [
       "expo-router",
       "expo-secure-store",
-      "expo-web-browser"
-    ]
+      "expo-web-browser",
+      "expo-build-properties",
+      "@react-native-firebase/app"
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "2dd8334e-ec3b-4607-b2a4-41f160cefb28"
+      }
+    },
+    "owner": "imrannizal"
   }
 }

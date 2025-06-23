@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "829774020185",
+    "project_id": "slife-d43c7",
+    "storage_bucket": "slife-d43c7.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:829774020185:android:e2573d172dc4d931357b48",
+        "android_client_info": {
+          "package_name": "com.imrannizal.Slife"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "829774020185-mrhs5t43k23bhot3ru9hs70p9i15me62.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.imrannizal.Slife",
+            "certificate_hash": "a84e7bbcedee6f6cbab7b0bef4e0b464adcb54f5"
+          }
+        },
+        {
+          "client_id": "829774020185-jm8ba3f1ko6tkash7tln6e3h897n7u7f.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBaCGeAcCycQJqrRSb-MiHIW8xqZQMNUAY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "829774020185-jm8ba3f1ko6tkash7tln6e3h897n7u7f.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "829774020185-lgo97dmc9k4ijit66r1c0oibs481ki6m.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.imrannizal.Slife"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

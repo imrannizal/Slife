@@ -2,11 +2,12 @@ import { router } from 'expo-router'
 import { StyleSheet, View, Pressable } from 'react-native'
 import { Text, TextInput, Button, useTheme } from 'react-native-paper';
 import { useState } from 'react';
+import useAuthStore from '../../store/authStore';
+import { registerUser } from '../../firebaseConfig';
 
 // Components
 import DismissKeyboardView from '../../components/DismissKeyboardView'
 import ThemedCard from '../../components/ThemedCard'
-
 
 const Register = () => {
   const { colors } = useTheme();
@@ -14,10 +15,42 @@ const Register = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const login = useAuthStore((state) => state.login);
 
   // Helpers
-  const handleRegister = () => {
-    router.replace("/todos")
+  const handleRegister = async () => {
+    try {
+      // Validate inputs
+      if (!username || !email || !password || !confirmPassword) {
+        alert('Please fill all fields');
+        return;
+      } else if (password !== confirmPassword) {
+        alert('Passwords do not match');
+        return;
+      } else if (password.length < 6) {
+        alert('Password must be at least 6 characters');
+        return;
+      } else if (!email.includes('@')) {
+        alert('Please enter a valid email address');
+        return;
+      }
+
+      // Register user using FirebaseConfig
+      const userData = await registerUser(email, password, username);
+
+      if (!userData) {
+        alert('Registration failed. Please try again.');
+        return;
+      } 
+
+      // Login the user after registration (authStore)
+      login({ user: userData });
+    } catch (error) {
+      console.error('Registration error:', error);
+      alert('Registration failed. Please try again.');
+    }
+
+    router.replace('/todos');
   };
 
   return (

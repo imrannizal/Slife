@@ -1,4 +1,4 @@
-package com.anonymous.Slife
+package com.imrannizal.Slife
 
 import android.app.Application
 import android.content.res.Configuration

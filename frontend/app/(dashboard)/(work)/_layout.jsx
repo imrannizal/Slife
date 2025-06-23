@@ -1,12 +1,11 @@
-import { Tabs } from 'expo-router';
+import { Stack } from 'expo-router'
 
-export default function TabLayout() {
+const WorkLayout = () => {
   return (
-    <Tabs screenOptions={{
-      headerShown: false,
-      tabBarActiveTintColor: '#6200ee'
-    }}>
-      <Tabs.Screen name="workspaces" options={{ title: 'All Workspaces' }} />
-    </Tabs>
+    <Stack screenOptions={{
+        headerShown: false,
+    }} />
   );
-}
+};
+
+export default WorkLayout;
