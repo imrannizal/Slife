@@ -6,8 +6,7 @@ These combined features that Slife offers to users allows them to be in a struct
 
 Tech Stack:
 Frontend: React Native + Expo
-Serverless Backend: Firebase
-State management: Zustand
-AsyncStorage
+Serverless Backend: Firebase (for Authentication and Firestore)
+State management: Zustand + AsyncStorage
 UI: React Native Paper
 SecureStore
