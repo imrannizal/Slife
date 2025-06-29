@@ -54,6 +54,7 @@ const PersonalSpaceLayout = () => {
           setEmail(userData.email);
           setProfilePicture(userData.profile_picture);
         }
+
       } catch {
         console.error("Problem with handling user data.");
       }

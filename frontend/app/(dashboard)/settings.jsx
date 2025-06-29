@@ -1,15 +1,27 @@
 import { useState } from 'react';
-import { View, StyleSheet, ScrollView } from 'react-native';
-import { Switch, List, Text, useTheme } from 'react-native-paper';
+import { StyleSheet, ScrollView } from 'react-native';
+import { Switch, List, useTheme } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+
+import useAuthStore from '../../store/authStore';
+import useNoteStore from '../../store/noteStore';
+import useTodoStore from '../../store/todoStore';
 
 const SettingsScreen = () => {
   const { colors } = useTheme();
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [darkModeEnabled, setDarkModeEnabled] = useState(false);
 
-  const handleLogout = () => {
+  const clearTodo = useTodoStore(state => state.logout);
+  const clearNote = useNoteStore(state => state.logout);
+  const logout = useAuthStore(state => state.logout);
+
+  const handleLogout = async () => {
+
+    await logout();
+    await clearTodo();
+    clearNote();
 
     router.replace("/login");
 

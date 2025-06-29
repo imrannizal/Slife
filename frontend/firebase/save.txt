@@ -1,24 +1,3 @@
-import { initializeApp } from 'firebase/app';
-import { getFirestore, doc, getDoc, setDoc, serverTimestamp, 
-  getDocs, query, where, collection, Timestamp, updateDoc, addDoc  } from 'firebase/firestore';
-import auth from '@react-native-firebase/auth';
-
-// Firebase config object
-const firebaseConfig = {
-    apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
-    authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
-    projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
-    storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
-    messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-    appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID
-}
-
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-
-// Firebase services
-const db = getFirestore(app);
-
 // Login auth and fetch user data from Firestore
 export const loginAndFetchUserData = async (email, password) => {
     try {
@@ -146,6 +125,31 @@ export const addNewNote = async (username, noteData) => {
     throw error;
   }
 };
+
+//export const deleteNote = async (username, noteID) => {}
+
+
+// export const getUserTodos
+// export const updateTodos
+// export const addNewTodo
+// export const deleteTodo
+
+// export const getUserWorkspace
+// export const getWorkspaceContent
+
+// export const addUserWorkspace (username, workspace, token)
+// export const deleteUserWorkspace (username, workspace)
+
+// export const updateWorkspaceContent (content)
+// export const deleteWorkspaceContent (content)
+// export const addWorkspaceContent (workspace, content)
+// export const deleteWorkspace (workspace)
+// export const updateWorkspace (workspace)
+// export const addWorkspace (workspace)
+// export const addContentComment (content, comment)
+// export const deleteContentComment (comment)
+
+
 
 // Export Firebase services if needed elsewhere
 export { auth, db, app };

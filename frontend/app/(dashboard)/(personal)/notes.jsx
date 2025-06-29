@@ -4,59 +4,23 @@ import { useTheme, FAB, Portal, IconButton, Divider } from 'react-native-paper';
 import { router } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import ThemedCard from '../../../components/ThemedCard';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { addNewNote } from '../../../firebaseConfig';
+
+import useAuthStore from '../../../store/authStore';
+import useNoteStore from '../../../store/noteStore';
 
 const NotesScreen = () => {
   const { colors } = useTheme();
   const [fabOpen, setFabOpen] = useState(false);
   const [fabVisible, setFabVisible] = useState(true);  
-  const [notes, setNotes] = useState([]);
   const [loading, setLoading] = useState(false);
+  const notes = useNoteStore(state => state.notes);
+  const toggleStar = useNoteStore(state => state.toggleNoteStar);
 
-  // Combined useFocusEffect for both note loading and FAB visibility
-  useFocusEffect(
-    React.useCallback(() => {
-      let isActive = true;
-
-      // Load notes
-      const loadNotes = async () => {
-        try {
-          setLoading(true);
-          const notesData = await AsyncStorage.getItem('noteList');
-          
-          if (!isActive) return;
-          
-          if (notesData) {
-            const parsedNotes = JSON.parse(notesData);
-            const normalizedNotes = (parsedNotes?.noteList || [])
-              .filter(note => note?.id)
-              .map(note => ({
-                ...note,
-                updated_at: note.updated_at ? new Date(note.updated_at) : new Date(),
-                created_at: note.created_at ? new Date(note.created_at) : new Date()
-              }));
-              
-            if (isActive) setNotes(normalizedNotes);
-          } else if (isActive) setNotes([]);
-        } catch (error) {
-          if (isActive) setNotes([]);
-        } finally {
-          if (isActive) setLoading(false);
-        }
-      };
-
-      loadNotes();
-      
-      // Show FAB
-      setFabVisible(true);
-      
-      return () => {
-        isActive = false;
-        setFabVisible(false); // Hide FAB when leaving screen
-      };
-    }, [])
-  );
+  // Display FAB when screen is not focused
+  useFocusEffect(() => {
+    setFabVisible(true);
+    return () => setFabVisible(false); // Hide when leaving screen
+  });
 
   if (loading) {
     return (
@@ -70,18 +34,16 @@ const NotesScreen = () => {
     // Generate a temporary ID (will be replaced with real Firestore ID later)
     const tempId = `temp-${Date.now()}`;
 
-    const user = await AsyncStorage.getItem('user');
-    const parsedUser = JSON.parse(user);
-    console.log(parsedUser.username)
-    
-    // Create example note data
+    const user = useAuthStore.getState().user
+
+    // Create new note data
     const newNote = {
-      id: "new",
+      id: tempId,
       title: "New Note",
       content: "Write your content here...",
       color: "#ffeb3b", // yellow
       starred: false,
-      owner: parsedUser.username , // You might want to get this dynamically
+      owner: user.username,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
@@ -98,24 +60,16 @@ const NotesScreen = () => {
   };
 
   const handleNotePress = (note) => {
-    // Navigate to note detail screen
-    console.log("Navigating to note:", note);
-    console.log("Navigating to note:", note.id);
 
+    // Navigate to note detail screen
     router.push({
       pathname: '/editNotes/[id]',
       params: {
         id: note.id,
-        note: JSON.stringify(note)
+        note: JSON.stringify(note),
+        isNew: "false"
       }
     });
-  };
-
-  const toggleStar = (noteId) => {
-    // Update local state only
-    setNotes(notes.map(note => 
-      note.id === noteId ? { ...note, starred: !note.starred } : note
-    ));
   };
 
   const groupNotesByTime = (notes) => {
@@ -155,8 +109,6 @@ const NotesScreen = () => {
     }, { today: [], yesterday: [], lastWeek: [], lastMonth: [], lastYear: [], older: [] });
   };
 
-  const groupedNotes = groupNotesByTime(notes);
-
   // Floating Action Button actions
   const fabActions = [
     {
@@ -186,7 +138,7 @@ const NotesScreen = () => {
         <Text style={{ color: colors.text }}>No notes found</Text>
       ) : (
         <>
-          {Object.entries(groupedNotes).map(([timePeriod, notes]) => (
+          {Object.entries(groupNotesByTime(notes)).map(([timePeriod, notes]) => (
             notes.length > 0 && (
               <View key={timePeriod}>
 

@@ -2,8 +2,9 @@ import { router } from 'expo-router'
 import { StyleSheet, View, Pressable } from 'react-native'
 import { Text, TextInput, Button, useTheme } from 'react-native-paper';
 import { useState } from 'react';
+
+// Zustand
 import useAuthStore from '../../store/authStore';
-import { registerUser } from '../../firebaseConfig';
 
 // Components
 import DismissKeyboardView from '../../components/DismissKeyboardView'
@@ -15,7 +16,9 @@ const Register = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const login = useAuthStore((state) => state.login);
+
+  // Zustand function
+  const register = useAuthStore((state) => state.register);
 
   // Helpers
   const handleRegister = async () => {
@@ -35,22 +38,23 @@ const Register = () => {
         return;
       }
 
-      // Register user using FirebaseConfig
-      const userData = await registerUser(email, password, username);
+      // Register user using authStore
+      await register(email, password, username);
 
-      if (!userData) {
-        alert('Registration failed. Please try again.');
-        return;
-      } 
+      // fetch users
+      const user = useAuthStore.getState().user
 
-      // Login the user after registration (authStore)
-      login({ user: userData });
+      // routing to todo page
+      if (user) {
+        router.replace('/todos');
+      } else {
+        alert('Registration failed!');
+      }
+
     } catch (error) {
       console.error('Registration error:', error);
       alert('Registration failed. Please try again.');
     }
-
-    router.replace('/todos');
   };
 
   return (

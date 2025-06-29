@@ -1,19 +1,38 @@
 import { useEffect } from 'react';
 import { View, Text, StyleSheet, Image } from 'react-native';
 import { useRouter } from 'expo-router';
+
+// Zustand
 import useAuthStore from '../store/authStore';
+import useNoteStore from '../store/noteStore';
+import useTodoStore from '../store/todoStore';
 
 export default function SplashScreen() {
   const router = useRouter();
-  const { restoreSession } = useAuthStore();
+  const checkAuth = useAuthStore(state => state.checkAuth);
   
   // Restore session on splash screen load
   useEffect(() => {
+
+    const verifyAuth = async () => {
+
+      const userData = await useAuthStore.getState().user;
+      console.log(userData);
+
+      if (userData != null) {
+        await useNoteStore.getState().fetchNotes(userData.username);
+        await useTodoStore.getState().fetchTodos(userData.username);
+        router.replace('/todos');
+      } else {
+        router.replace('/login'); // Navigate to login page
+      }
+
+    }
+
     const timer = setTimeout(() => {
-      router.replace('/login'); // Navigate to login page
+      verifyAuth();
     }, 1000); // 1-second splash screen
 
-    restoreSession();
     return () => clearTimeout(timer);
   }, []);
 

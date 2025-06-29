@@ -20,7 +20,6 @@ const ProfileScreen = () => {
 
         if (userDataString) {
           const userData = JSON.parse(userDataString);
-          console.log("User username:", userData.username);
           setUser(userData.username);
           setEmail(userData.email);
           setProfilePicture(userData.profile_picture);

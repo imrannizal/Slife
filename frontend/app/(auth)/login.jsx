@@ -1,10 +1,14 @@
 import { Image, Pressable, StyleSheet, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { Text, TextInput, Button, useTheme } from 'react-native-paper';
-import { loginAndFetchUserData, getUserNotes } from '../../firebaseConfig';
-import useAuthStore from '../../store/authStore';
 import React, { useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
+
+// Zustand
+import useAuthStore from '../../store/authStore';
+import useNoteStore from '../../store/noteStore';
+import useTodoStore from '../../store/todoStore';
 
 // Components
 import ThemedCard from '../../components/ThemedCard';
@@ -12,36 +16,49 @@ import DismissKeyboardView from '../../components/DismissKeyboardView';
 import Space from '../../components/Space';
 
 const Login = () => {
+  // useStates
   const colors = useTheme();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const login = useAuthStore((state) => state.login);
-  const setUserNotes = useAuthStore((state => state.setUserNotes));
 
-  // Handle login button press as well as authStore
+  // Zustand functions
+  const login = useAuthStore(state => state.login);
+  const fetchNotes = useNoteStore(state => state.fetchNotes);
+  const fetchTodos = useTodoStore(state => state.fetchTodos);
+
+  // Handle login button press
+  // Sets up zustand user, notes and todos data
   const handleLogin = async () => {
+    setLoading(true);
+    setError('');
+
     try {
-      setLoading(true);
-      setError('');
-      
+
       // Validate inputs
       if (!email || !password) {
         throw new Error('Please fill all fields');
       }
 
-      const userData = await loginAndFetchUserData(email, password);
-      const userNotes = await getUserNotes(userData.username);
+      await login(email, password);
+      const user = useAuthStore.getState().user;
 
-      if (!userData) {
-        alert('Login failed. Please try again.');
+      // Check if user exists
+      if (!user) {
+        alert('No user with that account. Please try again.');
         return;
       }
+      
+      // fetch all things
+      await Promise.all([
+        await fetchNotes(user.username),
+        await fetchTodos(user.username)
+      ]);
 
-      // ZUSTAND HERE
-      login({ user: userData });
-      setUserNotes({ noteList: userNotes });
+      const authData2 = await AsyncStorage.getItem('auth-storage');
+      console.log("async2")
+      console.log('Auth Storage:', JSON.parse(authData2));
 
       // Navigate on successful login
       router.push('/todos');

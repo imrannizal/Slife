@@ -1,58 +1,21 @@
-import { useState, useEffect } from 'react';
-import { ScrollView, StyleSheet, View, Text, BackHandler } from 'react-native';
+import { useState } from 'react';
+import { ScrollView, StyleSheet, View, Text, Alert } from 'react-native';
 import { useTheme, FAB, Portal, Checkbox } from 'react-native-paper';
 import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
 import ThemedCard from '../../../components/ThemedCard';
 
+import useTodoStore from '../../../store/todoStore';
+import useAuthStore from '../../../store/authStore';
+
 const TodosScreen = () => {
   const { colors } = useTheme();
   const [fabOpen, setFabOpen] = useState(false);
   const [fabVisible, setFabVisible] = useState(true);
-  
-  // Mock data for UI demonstration
-  const [todos, setTodos] = useState([
-    {
-      id: '1',
-      title: 'Buy groceries',
-      description: 'Milk, eggs, bread, fruits',
-      workspace: 'Home',
-      deadline: new Date(Date.now() + 86400000).toISOString(), // Tomorrow
-      is_completed: false,
-      is_personal: true,
-      updated_at: new Date().toISOString()
-    },
-    {
-      id: '2',
-      title: 'Finish project report',
-      description: 'Complete the quarterly report for stakeholders',
-      workspace: 'Work',
-      deadline: new Date(Date.now() + 172800000).toISOString(), // 2 days
-      is_completed: false,
-      is_personal: false,
-      updated_at: new Date().toISOString()
-    },
-    {
-      id: '3',
-      title: 'Call mom',
-      description: 'Discuss family gathering plans',
-      workspace: 'Personal',
-      deadline: null,
-      is_completed: true,
-      is_personal: true,
-      updated_at: new Date(Date.now() - 86400000).toISOString() // Yesterday
-    },
-    {
-      id: '4',
-      title: 'Team meeting',
-      description: 'Weekly sync with development team',
-      workspace: 'Work',
-      deadline: new Date(Date.now() + 3600000).toISOString(), // 1 hour from now
-      is_completed: false,
-      is_personal: false,
-      updated_at: new Date().toISOString()
-    }
-  ]);
+  const todos = useTodoStore(state => state.todos);
+  const toggleComplete = useTodoStore(state => state.toggleTodoComplete);
+  const autoDelete = useTodoStore(state => state.autoDeleteCompletedTodos);
+  const [sortByDeadline, setSortByDeadline] = useState(false);
 
   // Group todos by workspace
   const todosByWorkspace = todos.reduce((acc, todo) => {
@@ -64,39 +27,85 @@ const TodosScreen = () => {
     return acc;
   }, {});
 
-  // Function to toggle todo completion status
-  const toggleComplete = (todoId) => {
-    setTodos(todos.map(todo => 
-      todo.id === todoId ? { ...todo, is_completed: !todo.is_completed } : todo
-    ));
+  const addNewTodo = () => {
+    // Generate a temporary ID (will be replaced with real Firestore ID later)
+    const tempId = `temp-${Date.now()}`;
+
+    const user = useAuthStore.getState().user
+    
+    // Create example todo data
+    const newTodo = {
+      id: tempId,
+      title: "New Todo",
+      description: "Write your description here...",
+      owner: user.username, 
+      workspace: "Personal",
+      is_completed: false,
+      is_personal: false,
+      deadline: new Date().toISOString(),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    // Navigate to edit screen with the new todo
+    router.push({
+      pathname: '/editTodos/[id]',
+      params: {
+        id: tempId,
+        todo: JSON.stringify(newTodo),
+        isNew: "true" // Add flag to indicate this is a new todo
+      }
+    });
   };
 
-  // Function to open todo details (placeholder for navigation)
+  // Function to open todo details
   const openTodoDetails = (todo) => {
     router.push({
       pathname: "/editTodos/[id]",
       params: { 
         id: todo.id,
-        todo: JSON.stringify(todo) // Must stringify objects for params
+        todo: JSON.stringify(todo), // Must stringify objects for params
+        isNew: "false"
       }
     });
   };
+
+  // Show alert that confirms user to delete completed todos
+  const showDeleteAlert = () => {
+
+  const user = useAuthStore.getState().user
+
+  Alert.alert(
+    "Delete Completed Todos",
+    "Are you sure you want to delete all completed tasks?",
+    [
+      {
+        text: "Cancel",
+        style: "cancel",
+      },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: () => autoDelete(user.username),
+      },
+    ],
+    { cancelable: true }
+  );
+};
 
   // Floating Action Button actions
   const fabActions = [
     {
       icon: 'plus',
       label: 'Add Todo',
-      onPress: () => console.log('Add new todo'),
+      onPress: () => addNewTodo(),
       color: colors.primary,
       style: { backgroundColor: colors.surface }
     },
     {
       icon: 'delete',
       label: 'Auto-Delete',
-      onPress: () => {
-        setTodos(todos.filter(todo => !todo.is_completed));
-      },
+      onPress: () => showDeleteAlert(),
       color: colors.error,
       style: { backgroundColor: colors.surface }
     },
