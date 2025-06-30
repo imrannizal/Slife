@@ -7,12 +7,14 @@ import { router } from 'expo-router';
 import useAuthStore from '../../store/authStore';
 import useNoteStore from '../../store/noteStore';
 import useTodoStore from '../../store/todoStore';
+import useWorkspaceStore from '../../store/workspaceStore';
 
 const SettingsScreen = () => {
   const { colors } = useTheme();
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [darkModeEnabled, setDarkModeEnabled] = useState(false);
 
+  const clearWorkspace = useWorkspaceStore(state => state.logout);
   const clearTodo = useTodoStore(state => state.logout);
   const clearNote = useNoteStore(state => state.logout);
   const logout = useAuthStore(state => state.logout);
@@ -21,7 +23,8 @@ const SettingsScreen = () => {
 
     await logout();
     await clearTodo();
-    clearNote();
+    await clearNote();
+    await clearWorkspace();
 
     router.replace("/login");
 

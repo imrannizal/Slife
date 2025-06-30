@@ -3,8 +3,8 @@ import FirebaseWorkspace from '../firebase/FirebaseWorkspace';
 
 const useWorkspaceStore = create((set, get) => ({
     workspaces: [],
-    currentWorkspace: null,
     posts: [],
+    postsUnsubscribe: null,
     isLoading: false,
     error: null,
 
@@ -25,13 +25,10 @@ const useWorkspaceStore = create((set, get) => ({
     fetchWorkspacePosts: async (workspaceID) => {
         set({ isLoading: true, error: null });
         try {
-            if (currentWorkspace.id === workspaceID) return true;
-
             const posts = await FirebaseWorkspace.getWorkspacePosts(workspaceID); // gets a list of workspaces and their attributes
             set({ 
                 posts: posts, 
-                isLoading: false,
-                currentWorkspace: state.workspaces.find(ws => ws.id === workspaceID) || null
+                isLoading: false
             });
             return true;
 
@@ -42,15 +39,39 @@ const useWorkspaceStore = create((set, get) => ({
         }
     },
 
+    // Real-time post management
+    startPostsListener: (workspaceID) => {
+        // Cleanup previous listener
+        get().stopPostsListener();
+
+        // Delegate to FirebaseWorkspace
+        const unsubscribe = FirebaseWorkspace.subscribeToPosts(
+            workspaceID,
+            (posts) => set({ posts })
+        );
+
+        set({ postsUnsubscribe: unsubscribe });
+    },
+
+    stopPostsListener: () => {
+        const { postsUnsubscribe } = get();
+        if (postsUnsubscribe) {
+            postsUnsubscribe();
+            set({ postsUnsubscribe: null, posts: [] });
+        }
+    },
+
     // should evaluate the token (if token given == token inside database (need to fetch the data first), and token != expired then proceed)
     // need to make a way that automatically updates the post/workspace whenever their "table" is updated. (useCallback maybe?)
     // executed when is inside "list of workspaces" page
-    joinWorkspace: async (token, userID, workspaceID) => {
+    joinWorkspace: async (token, userID) => {
         set({ isLoading: true, error: null });
         try {
-            // i think this is quite unoptimized, because we have 3 Firebase API calls
+
+            const workspaceID = await FirebaseWorkspace.checkToken(token);
+
             // this checks if token is valid
-            if (await FirebaseWorkspace.checkToken(token)){
+            if (workspaceID) {
 
                 // join the workspace as normal member
                 await FirebaseWorkspace.joinWorkspace(userID, workspaceID, false);
@@ -58,10 +79,13 @@ const useWorkspaceStore = create((set, get) => ({
                 // re-fetch all user workspaces
                 await get().fetchWorkspaces(userID);
 
+                return true;
             } else {
                 // if the token is invalid, print error
                 console.log("Error; either the token is false or it has expired.")
                 set({ isLoading: false })
+
+                return false;
             }
         } catch (err) {
             set({ error: err.message, isLoading: false });
@@ -71,16 +95,15 @@ const useWorkspaceStore = create((set, get) => ({
     },
 
     // Generate a join token by updating the 'token' and 'expiryToken' (for 1 day) (executed by admin(s) inside current workspace)
-    generateJoinToken: async () => {
-        set({ isLoading: true, error: null });
+    generateJoinToken: async (workspaceID) => {
         try {
             // Generate and save the token
-            const generatedToken = await FirebaseWorkspace.generateJoinToken(currentWorkspace.id);
+            const generatedToken = await FirebaseWorkspace.generateJoinToken(workspaceID);
 
             // modify local state immediately (optimistic ui update method)
             set((state) => ({
                 workspaces: state.workspaces.map(ws =>
-                    ws.id === currentWorkspace.id
+                    ws.id === workspaceID
                         ? {
                             ...ws,
                             token: generatedToken.token,
@@ -88,32 +111,27 @@ const useWorkspaceStore = create((set, get) => ({
                         }
                         : ws
                 ),
-                currentWorkspace: {         // update current workspace as well
-                    ...currentWorkspace,
-                    token: generatedToken.token,
-                    expiryToken: generatedToken.expiryToken
-                },
-                isLoading: false
             }));
+
+            return generatedToken;
         } catch (err) {
-            set({ error: err.message, isLoading: false });
+            set({ error: err.message });
             console.error("Token generation failed (workspaceStore): ", err);
             throw err;
         }
     },
 
     // Leave workspace by deleting user_workspace document in the firestore (executed when inside current workspace page)
-    leaveWorkspace: async (userID) => {
+    leaveWorkspace: async (userID, workspaceID) => {
         set({ isLoading: true, error: null });
         try {
             // calling function
-            const success = await FirebaseWorkspace.leaveWorkspace(userID, currentWorkspace.id);
+            const success = await FirebaseWorkspace.leaveWorkspace(userID, workspaceID);
 
             // optimistic ui update method
             if (success) {
                 set((state) => ({
-                    workspaces: state.workspaces.filter(ws => ws.id !== currentWorkspace.id), // Remove the workspace (from user)
-                    currentWorkspace: null,
+                    workspaces: state.workspaces.filter(ws => ws.id !== workspaceID), // Remove the workspace (from user)
                     isLoading: false
                 }));
             }
@@ -141,17 +159,16 @@ const useWorkspaceStore = create((set, get) => ({
     },
 
     // Delete workspace (executed by owner inside current workspace page)
-    deleteWorkspace: async () => {
+    deleteWorkspace: async (workspaceID) => {
         set({ isLoading: true, error: null });
         try {
             // Call firebase to remove the workspace
-            await FirebaseWorkspace.deleteWorkspace(currentWorkspace.id);
+            await FirebaseWorkspace.deleteWorkspace(workspaceID);
 
             // optimistic ui update method
             set((state) => ({
-                workspaces: state.workspaces.filter(ws => ws.id !== currentWorkspace.id), // Remove the workspace
+                workspaces: state.workspaces.filter(ws => ws.id !== workspaceID), // Remove the workspace
                 posts: [],
-                currentWorkspace: null,
                 isLoading: false
             }));
 
@@ -163,19 +180,15 @@ const useWorkspaceStore = create((set, get) => ({
     },
 
     // update workspace (executed by admin [or owner] inside current workspace page)
-    updateWorkspace: async (data) => {
+    updateWorkspace: async (userID, workspaceID, data) => {
         set({ isLoading: true, error: null });
         try {
             // Call firebase to update the workspace
-            await FirebaseWorkspace.updateWorkspace(currentWorkspace.id, data);
+            await FirebaseWorkspace.updateWorkspace(workspaceID, data);
 
             // modify local state immediately (optimistic ui update method)
             set((state) => ({
-                workspaces: state.workspaces.map(ws => ws.id === currentWorkspace.id ? { ...data } : ws),
-                currentWorkspace: {
-                    ...currentWorkspace,
-                    ...data
-                },
+                workspaces: state.workspaces.map(ws => ws.id === workspaceID ? { ...data } : ws),
                 isLoading: false
             }));
 
@@ -186,26 +199,22 @@ const useWorkspaceStore = create((set, get) => ({
         }
     },
 
-    // exiting workspace (exit only, not actually leaving)
     exitWorkspace: () => {
-        set ({ currentWorkspace: null, posts: []});
+        set({ posts: [] });
     },
 
     // add post (can be done by anyone), executed inside current workspace page
-    addPost: async(data) => {
+    addPost: async(workspaceID, data) => {
         set({ isLoading: true, error: null });
         try {
             // add current workspaceID
             data = {
                 ...data,
-                workspaceID: currentWorkspace.id
+                workspaceID: workspaceID
             }
 
             // call firebase
             await FirebaseWorkspace.addPost(data);
-
-            // fetch workspace posts (from firebase) and update zustand
-            await get().fetchWorkspacePosts(currentWorkspace.id);
 
         } catch (err) {
             set({ error: err.message, isLoading: false });
@@ -221,9 +230,6 @@ const useWorkspaceStore = create((set, get) => ({
             // call firebase to delete post
             await FirebaseWorkspace.deletePost(postID);
 
-            // update zustand
-            await get().fetchWorkspacePosts(currentWorkspace.id);
-
         } catch (err) {
             set({ error: err.message, isLoading: false });
             console.log("Error deleting a post in the workspace (workspaceStore): ", err);
@@ -238,14 +244,15 @@ const useWorkspaceStore = create((set, get) => ({
             // update post at the firestore
             await FirebaseWorkspace.updatePost(postID, data)
 
-            // update the post of current workspace
-            await get().fetchWorkspacePosts(currentWorkspace.id);
-
         } catch (err) {
             set({ error: err.message, isLoading: false });
             console.log("Error updating the post (workspaceStore): ", err);
             throw err;
         }
+    },
+
+    logout: () => {
+        set({ posts: [], workspaces: [], postsUnsubscribe: null})
     }
 
 }));

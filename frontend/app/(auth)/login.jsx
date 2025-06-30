@@ -9,6 +9,7 @@ import { router } from 'expo-router';
 import useAuthStore from '../../store/authStore';
 import useNoteStore from '../../store/noteStore';
 import useTodoStore from '../../store/todoStore';
+import useWorkspaceStore from '../../store/workspaceStore';
 
 // Components
 import ThemedCard from '../../components/ThemedCard';
@@ -27,6 +28,7 @@ const Login = () => {
   const login = useAuthStore(state => state.login);
   const fetchNotes = useNoteStore(state => state.fetchNotes);
   const fetchTodos = useTodoStore(state => state.fetchTodos);
+  const fetchWorkspaces = useWorkspaceStore(state => state.fetchWorkspaces)
 
   // Handle login button press
   // Sets up zustand user, notes and todos data
@@ -53,12 +55,9 @@ const Login = () => {
       // fetch all things
       await Promise.all([
         await fetchNotes(user.username),
-        await fetchTodos(user.username)
+        await fetchTodos(user.username),
+        await fetchWorkspaces(user.uid)
       ]);
-
-      const authData2 = await AsyncStorage.getItem('auth-storage');
-      console.log("async2")
-      console.log('Auth Storage:', JSON.parse(authData2));
 
       // Navigate on successful login
       router.push('/todos');

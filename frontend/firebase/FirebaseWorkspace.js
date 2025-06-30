@@ -1,21 +1,22 @@
 import { db } from './FirebaseConfig.js';
-import { randomBytes } from 'react-native-crypto';
-import { 
-  doc, 
-  setDoc, 
-  updateDoc,
-  deleteDoc,
-  collection,
-  query,
-  where,
-  getDocs,
-  getDoc,
-  serverTimestamp,
-  writeBatch
+import * as Crypto from 'expo-crypto';
+import {
+    doc,
+    setDoc,
+    updateDoc,
+    deleteDoc,
+    collection,
+    query,
+    where,
+    getDocs,
+    getDoc,
+    serverTimestamp,
+    writeBatch,
+    onSnapshot,
 } from 'firebase/firestore';
 
 class FirebaseWorkspace {
-    
+
     user_WorkspaceCollection = collection(db, 'user_workspace');
     workspaceCollection = collection(db, 'workspaces');
     workspace_postCollection = collection(db, 'workspace_post');
@@ -44,23 +45,6 @@ class FirebaseWorkspace {
      * - updated_at
      */
 
-    /**
-     * func related to managing the workspace
-     * getUserWorkspaces (variants: allUsersInWorkspace)
-     * generateJoinToken
-     * joinWorkspace
-     * leaveWorkspace
-     * addWorkspace
-     * deleteWorkspace
-     * updateWorkspace
-     * 
-     * func related to managing posts of a workspace
-     * getWorkspacePosts
-     * addPost
-     * deletePost (variants: deleteAllPost)
-     * updatePost
-     */
-
     async getUserWorkspaces(userID) {
         try {
             // Get user's workspace relations
@@ -78,11 +62,19 @@ class FirebaseWorkspace {
 
                 workspacePromises.push(
                     getDoc(doc(this.workspaceCollection, workspaceID))
-                        .then(workspaceSnap => ({
-                            ...workspaceSnap.data(),
-                            id: workspaceSnap.id,
-                            role // to include user role
-                        })));
+                        .then(workspaceSnap => {
+                            const data = workspaceSnap.data();
+                            const { created_at, updated_at, expiryToken, ...rest } = data;
+
+                            return {
+                                ...rest,
+                                id: workspaceSnap.id,
+                                role,
+                                created_at: new Date(created_at.seconds * 1000),
+                                updated_at: new Date(updated_at.seconds * 1000),
+                                expiryToken: new Date(expiryToken?.seconds * 1000) || null
+                            };
+                        }));
 
             });
 
@@ -124,7 +116,7 @@ class FirebaseWorkspace {
             const querySnapshot = await getDocs(tokenQuery);
 
             // if there is no workspace retrieved it means user entered wrong token
-            if (querySnapshot.empty) return false;  
+            if (querySnapshot.empty) return false;
 
             const workspaceDoc = querySnapshot.docs[0];
             const { expiryToken } = workspaceDoc.data();
@@ -138,18 +130,21 @@ class FirebaseWorkspace {
                     token: null,
                     expiryToken: null
                 });
+
+                return null;
             }
 
-            return isTokenValid;
+            return workspaceDoc.id;
+
         } catch (err) {
             console.log("Failed checking token of every workspace (FirebaseWorkspace): ", err)
             throw err;
         }
-        
+
     }
 
     // get all workspace's posts
-    async getWorkspacePosts (workspaceID) {
+    async getWorkspacePosts(workspaceID) {
         try {
             const postQuery = query(
                 this.workspace_postCollection,
@@ -165,10 +160,18 @@ class FirebaseWorkspace {
 
                 postPromises.push(
                     getDoc(doc(this.postCollection, postID))
-                        .then(postSnap => ({
-                            ...postSnap.data(),
-                            id: postSnap.id
-                        })));
+                        .then(postSnap => {
+                            const data = postSnap.data();
+                            const { created_at, updated_at, ...rest } = data;
+
+                            return {
+                                ...rest,
+                                id: postSnap.id,
+                                created_at: new Date(created_at.seconds * 1000),
+                                updated_at: new Date(updated_at.seconds * 1000),
+                            };
+
+                        }));
 
             });
 
@@ -183,6 +186,46 @@ class FirebaseWorkspace {
         }
     }
 
+    // real time sync with the posts
+    subscribeToPosts(workspaceID, callback) {
+        const postsQuery = query(
+            this.workspace_postCollection,
+            where('workspaceID', '==', workspaceID)
+        );
+
+        return onSnapshot(postsQuery, async (snapshot) => {
+
+            const postIDs = snapshot.docs.map(doc => doc.data().postID);
+
+            if (postIDs.length === 0) {
+                callback([]);
+                return;
+            }
+
+            const postsQuery = query(
+                this.postCollection,
+                where('__name__', 'in', postIDs)
+            );
+
+            const postsSnapshot = await getDocs(postsQuery);
+
+            const posts = postsSnapshot.docs.map(doc => {
+                const data = doc.data();
+                const { created_at, updated_at, ...rest } = data;
+
+                return {
+                    id: doc.id,
+                    ...data,
+                    created_at: new Date(created_at.seconds * 1000),
+                    updated_at: new Date(updated_at.seconds * 1000)
+                };
+
+            })
+
+            callback(posts);
+        });
+    }
+
     // getting all the user_workspace data/relationship for a specific workspace (only gives their id)
     async allUsersInWorkspace(workspaceID) {
         try {
@@ -191,7 +234,7 @@ class FirebaseWorkspace {
                 where('workspaceID', '==', workspaceID)
             )
             const querySnapshot = await getDocs(workspaceQuery);
-            const user_workspaceList = [] 
+            const user_workspaceList = []
 
             querySnapshot.forEach((doc) => {
                 user_workspaceList.push({
@@ -220,12 +263,12 @@ class FirebaseWorkspace {
      * - token
      * - expiryToken
      */
-    async addWorkspace(data) { 
+    async addWorkspace(data) {
         try {
             // adding to the 'workspaces' table
             const newWorkspaceRef = doc(this.workspaceCollection);
             await setDoc(newWorkspaceRef, {
-                owner: data.user,
+                owner: data.owner,
                 name: data.name,
                 description: data.description,
                 updated_at: serverTimestamp(),
@@ -244,7 +287,7 @@ class FirebaseWorkspace {
     }
 
     // leave workspace (quite a heavy task)
-    async leaveWorkspace(userID, workspaceID) { 
+    async leaveWorkspace(userID, workspaceID) {
         try {
             const q = query(
                 this.user_WorkspaceCollection,
@@ -253,7 +296,7 @@ class FirebaseWorkspace {
             )
             const querySnapshot = await getDocs(q);
 
-            querySnapshot.forEach( async (doc) => {
+            querySnapshot.forEach(async (doc) => {
                 await deleteDoc(doc.ref);
             });
 
@@ -299,17 +342,20 @@ class FirebaseWorkspace {
     // assume it is admin that is generating
     async generateJoinToken(workspaceID) {
 
-        // generating Secure token
-        const generateSecureToken = (length = 12) => {
-            return randomBytes(Math.ceil(length / 2))
-                .toString('hex') // hexadecimal conversion
-                .toUpperCase() // optional, to make it clean
+        const generateSecureToken = async (length = 12) => {
+            const byteArray = new Uint8Array(length);
+            await Crypto.getRandomValues(byteArray); // random bytes
+
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'; // Alphabets and numbers
+            return Array.from(byteArray)
+                .map(byte => chars[byte % chars.length])
+                .join('')
                 .slice(0, length);
         };
 
         try {
             const workspaceTokenData = {
-                token: generateSecureToken(),
+                token: await generateSecureToken(),
                 expiryToken: new Date(Date.now() + 24 * 60 * 60 * 1000), // 1 days
             }
 
@@ -336,8 +382,12 @@ class FirebaseWorkspace {
      */
     async updateWorkspace(workspaceID, data) {
         try {
+            console.log(data)
             await updateDoc(doc(this.workspaceCollection, workspaceID), {
-                ...data,
+                name: data.name,
+                description: data.description,
+                image: data.image,
+                created_at: new Date(data.created_at),
                 updated_at: serverTimestamp() // updated now
             })
         } catch (err) {
@@ -361,7 +411,7 @@ class FirebaseWorkspace {
             // adding post to "posts" table
             const newPostRef = doc(this.postCollection);
             await setDoc(newPostRef, {
-                owner: data.user,
+                owner: data.owner,
                 title: data.title,
                 content: data.content,
                 updated_at: serverTimestamp(),
@@ -388,7 +438,7 @@ class FirebaseWorkspace {
             // then get the post ID for the posts table 
             // delete them
             // then we delete the workspace_post docs
-            
+
             const postQuery = query(
                 this.workspace_postCollection,
                 where("workspaceID", "==", workspaceID)
@@ -413,7 +463,20 @@ class FirebaseWorkspace {
     // delete post (post owner only) (also assume current owner is post owner)
     async deletePost(postID) {
         try {
+            // Delete the doc inside the 'posts' table
             await deleteDoc(doc(this.postCollection, postID));
+
+            // Delete the doc inside 'workspace_post' table
+            const postQuery = query(
+                this.workspace_postCollection,
+                where("postID", "==", postID)
+            )
+            const querySnapshot = await getDocs(postQuery); // this is doc id for workspace_post table
+
+            querySnapshot.forEach(async (doc) => {
+                await deleteDoc(doc.ref);
+            });
+
         } catch (err) {
             console.log("Error deleting post (FirebaseWorkspace): ", err);
             throw err;
@@ -421,7 +484,7 @@ class FirebaseWorkspace {
     }
 
     // update post
-    async updatePost(postId, data){
+    async updatePost(postId, data) {
         try {
             await updateDoc(doc(this.postCollection, postId), {
                 ...data,

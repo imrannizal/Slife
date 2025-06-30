@@ -5,6 +5,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 import useTodoStore from '../../../store/todoStore';
+import useWorkspaceStore from '../../../store/workspaceStore';
 
 const EditTodoScreen = () => {
   const { colors } = useTheme();
@@ -13,7 +14,7 @@ const EditTodoScreen = () => {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [visible, setVisible] = useState(false);
-  const workspaces = ["Internet of Things", "Computing Maths 2", "Personal"]; // should be dynamic list
+  const [workspaces, setWorkspaces] = useState([]); // should be dynamic list
   const addTodo = useTodoStore(state => state.addTodo);
   const updateTodo = useTodoStore(state => state.updateTodo);
   const deleteTodo = useTodoStore(state => state.deleteTodo);
@@ -27,8 +28,13 @@ const EditTodoScreen = () => {
         deadline: parsedTodo.deadline ? new Date(parsedTodo.deadline) : new Date()
       });
 
+      const workspaceList = useWorkspaceStore.getState().workspaces
+      const workspaceNames = workspaceList.map(ws => ws.name);
+
+      setWorkspaces([...workspaceNames, "Personal"]);
+
     } else {
-        router.back();
+      router.back();
     }
   }, []);
 
@@ -46,7 +52,7 @@ const EditTodoScreen = () => {
       workspace: todo.workspace
     }
 
-    if (params.isNew === "true"){
+    if (params.isNew === "true") {
       addTodo(savedTodo);
     } else {
       updateTodo(todo.id, savedTodo);
@@ -56,25 +62,25 @@ const EditTodoScreen = () => {
   };
 
   const handleDelete = () => {
-      Alert.alert(
-        "Delete Note",
-        "Are you sure you want to delete this todo?",
-        [
-          {
-            text: "Cancel",
-            style: "cancel",
+    Alert.alert(
+      "Delete Note",
+      "Are you sure you want to delete this todo?",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => {
+            deleteTodo(todo.id);
+            router.back();
           },
-          {
-            text: "Delete",
-            style: "destructive",
-            onPress: () => {
-              deleteTodo(todo.id);
-              router.back();
-            },
-          },
-        ],
-        { cancelable: true }
-      );
+        },
+      ],
+      { cancelable: true }
+    );
   };
 
   if (!todo) return <Text>Loading...</Text>;
@@ -84,16 +90,16 @@ const EditTodoScreen = () => {
       contentContainerStyle={styles.contentContainer}>
 
       <Appbar.Header style={styles.header}>
-        <Appbar.Action 
-            icon="arrow-left"
-            onPress={() => router.back()}
-            style={styles.backButton}
-            accessibilityLabel="Go back"
+        <Appbar.Action
+          icon="arrow-left"
+          onPress={() => router.back()}
+          style={styles.backButton}
+          accessibilityLabel="Go back"
         />
 
         <Appbar.Content
-            title="Edit Todo"
-            titleStyle={{ fontWeight: 'bold' }}
+          title={params.isNew === "true" ? "Create Todo" : "Edit Todo"}
+          titleStyle={{ fontWeight: 'bold' }}
         />
 
         <View style={styles.spacer} />
@@ -108,18 +114,18 @@ const EditTodoScreen = () => {
           />
         )}
 
-        <Appbar.Action 
-            icon="check"  // Standard Material "tick" icon
-            onPress={handleSave}
-            accessibilityLabel="Save"
-            style={styles.actionButton}
+        <Appbar.Action
+          icon="check"  // Standard Material "tick" icon
+          onPress={handleSave}
+          accessibilityLabel="Save"
+          style={styles.actionButton}
         />
       </Appbar.Header>
 
       <TextInput
         label="Title"
         value={todo.title}
-        onChangeText={(text) => setTodo({...todo, title: text})}
+        onChangeText={(text) => setTodo({ ...todo, title: text })}
         style={{ marginBottom: 16, margin: 8 }}
         mode="outlined"
       />

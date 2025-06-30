@@ -13,6 +13,7 @@ const NotesScreen = () => {
   const [fabOpen, setFabOpen] = useState(false);
   const [fabVisible, setFabVisible] = useState(true);  
   const [loading, setLoading] = useState(false);
+  const [showStarredOnly, setShowStarredOnly] = useState(false);
   const notes = useNoteStore(state => state.notes);
   const toggleStar = useNoteStore(state => state.toggleNoteStar);
 
@@ -73,6 +74,12 @@ const NotesScreen = () => {
   };
 
   const groupNotesByTime = (notes) => {
+
+    const filteredNotes = showStarredOnly
+
+    ? notes.filter(note => note.starred)
+    : notes
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
@@ -88,7 +95,7 @@ const NotesScreen = () => {
     const lastYear = new Date(today);
     lastYear.setFullYear(lastYear.getFullYear() - 1);
 
-    return notes.reduce((acc, note) => {
+    return filteredNotes.reduce((acc, note) => {
       const noteDate = new Date(note.updated_at);
       
       if (noteDate >= today) {
@@ -119,11 +126,9 @@ const NotesScreen = () => {
       style: { backgroundColor: colors.surface }
     },
     {
-      icon: 'star',
-      label: 'Starred',
-      onPress: () => {
-        console.log('Show starred notes');
-      },
+      icon: showStarredOnly ? 'star-off' : 'star',
+      label: showStarredOnly ? 'Show All' : 'Starred Only',
+      onPress: () => setShowStarredOnly(!showStarredOnly),
       color: colors.primary,
       style: { backgroundColor: colors.surface }
     },
@@ -138,6 +143,12 @@ const NotesScreen = () => {
         <Text style={{ color: colors.text }}>No notes found</Text>
       ) : (
         <>
+          {showStarredOnly && (
+            <Text style={[styles.filterActiveText, { color: colors.warning }]}>
+              Showing starred notes only
+            </Text>
+          )}
+          
           {Object.entries(groupNotesByTime(notes)).map(([timePeriod, notes]) => (
             notes.length > 0 && (
               <View key={timePeriod}>
@@ -248,6 +259,11 @@ const styles = StyleSheet.create({
     marginLeft: 16,
     marginTop: 20,
     marginBottom: 0,
+  },
+  filterActiveText: {
+    textAlign: 'center',
+    marginVertical: 10,
+    fontStyle: 'italic',
   },
 });
 

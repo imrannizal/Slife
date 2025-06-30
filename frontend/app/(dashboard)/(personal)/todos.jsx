@@ -18,27 +18,31 @@ const TodosScreen = () => {
   const [sortByDeadline, setSortByDeadline] = useState(false);
 
   // Group todos by workspace
-  const todosByWorkspace = todos.reduce((acc, todo) => {
-    const workspace = todo.workspace || 'Uncategorized';
-    if (!acc[workspace]) {
-      acc[workspace] = [];
+  const displayData = sortByDeadline
+    ? {
+      'All Todos (Sorted by Deadline)': [...todos].sort((a, b) =>
+        new Date(a.deadline || '9999-12-31') - new Date(b.deadline || '9999-12-31')
+      )
     }
-    acc[workspace].push(todo);
-    return acc;
-  }, {});
+    : todos.reduce((acc, todo) => {
+      const workspace = todo.workspace || 'Uncategorized';
+      if (!acc[workspace]) acc[workspace] = [];
+      acc[workspace].push(todo);
+      return acc;
+    }, {});
 
   const addNewTodo = () => {
     // Generate a temporary ID (will be replaced with real Firestore ID later)
     const tempId = `temp-${Date.now()}`;
 
     const user = useAuthStore.getState().user
-    
+
     // Create example todo data
     const newTodo = {
       id: tempId,
       title: "New Todo",
       description: "Write your description here...",
-      owner: user.username, 
+      owner: user.username,
       workspace: "Personal",
       is_completed: false,
       is_personal: false,
@@ -62,7 +66,7 @@ const TodosScreen = () => {
   const openTodoDetails = (todo) => {
     router.push({
       pathname: "/editTodos/[id]",
-      params: { 
+      params: {
         id: todo.id,
         todo: JSON.stringify(todo), // Must stringify objects for params
         isNew: "false"
@@ -73,25 +77,25 @@ const TodosScreen = () => {
   // Show alert that confirms user to delete completed todos
   const showDeleteAlert = () => {
 
-  const user = useAuthStore.getState().user
+    const user = useAuthStore.getState().user
 
-  Alert.alert(
-    "Delete Completed Todos",
-    "Are you sure you want to delete all completed tasks?",
-    [
-      {
-        text: "Cancel",
-        style: "cancel",
-      },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: () => autoDelete(user.username),
-      },
-    ],
-    { cancelable: true }
-  );
-};
+    Alert.alert(
+      "Delete Completed Todos",
+      "Are you sure you want to delete all completed tasks?",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => autoDelete(user.username),
+        },
+      ],
+      { cancelable: true }
+    );
+  };
 
   // Floating Action Button actions
   const fabActions = [
@@ -110,36 +114,32 @@ const TodosScreen = () => {
       style: { backgroundColor: colors.surface }
     },
     {
-      icon: 'calendar',
-      label: 'Sort by Deadline',
-      onPress: () => {
-        setTodos([...todos].sort((a, b) => 
-          (a.deadline || '9999-12-31').localeCompare(b.deadline || '9999-12-31')
-        ));
-      },
+      icon: sortByDeadline ? 'folder' : 'calendar',
+      label: sortByDeadline ? 'Group by Workspace' : 'Sort by Deadline',
+      onPress: () => setSortByDeadline(!sortByDeadline),
       color: colors.primary,
       style: { backgroundColor: colors.surface }
     },
   ];
 
-  // Display FAB when screen is not focused
+  // Display FAB when screen is focused
   useFocusEffect(() => {
     setFabVisible(true);
     return () => setFabVisible(false); // Hide when leaving screen
   });
 
   return (
-    <ScrollView 
+    <ScrollView
       style={[styles.container, { backgroundColor: colors.background }]}
       contentContainerStyle={styles.contentContainer}
     >
-      {Object.entries(todosByWorkspace).map(([workspace, workspaceTodos]) => (
+      {Object.entries(displayData).map(([workspace, workspaceTodos]) => (
         <View key={workspace} style={styles.workspaceSection}>
           <Text style={[styles.workspaceTitle, { color: colors.primary }]}>
             {workspace}
           </Text>
           {workspaceTodos.map(todo => (
-            <ThemedCard 
+            <ThemedCard
               key={todo.id}
               style={[styles.todoCard, todo.is_completed && styles.completedCard]}
               onPress={() => openTodoDetails(todo)}

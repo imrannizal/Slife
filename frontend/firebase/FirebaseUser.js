@@ -62,7 +62,8 @@ class FirebaseUser {
    */
   async updateProfile(uid, updates) {
     await updateDoc(doc(this._collection, uid), {
-      ...updates
+      username: updates.username,
+      profile_picture: updates.profile_picture,
     });
   }
 

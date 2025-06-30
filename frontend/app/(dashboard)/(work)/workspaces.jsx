@@ -1,58 +1,26 @@
-import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, Image, Alert } from 'react-native';
 import { useState } from 'react';
-import { Avatar, Title, Paragraph, Button, useTheme, Text, FAB, Portal, Divider, Surface, TextInput } from 'react-native-paper';
-import ThemedCard from '../../../components/ThemedCard';
+import { useTheme, Text, FAB, Portal, Button, Divider, TextInput as PaperTextInput, Dialog } from 'react-native-paper';
 import { router } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
-
-// Mock data for workspaces
-const mockWorkspaces = [
-  {
-    id: '1',
-    image: 'https://picsum.photos/seed/workspace1/200',
-    title: 'Marketing Team',
-    description: 'Campaign planning and creative brainstorming for Q3 launches',
-    adminList: ['user1', 'user2'],
-    createdAt: new Date('2023-05-15'),
-    posts: [
-      {
-        id: 'post1',
-        title: 'Q3 Campaign Ideas',
-        content: 'We should focus on influencer marketing this quarter',
-        creator: 'user1',
-        createdAt: new Date('2023-06-10'),
-        updatedAt: new Date('2023-06-12')
-      }
-    ]
-  },
-  {
-    id: '2',
-    image: 'https://picsum.photos/seed/workspace2/200',
-    title: 'Engineering',
-    description: 'Product development and sprint planning',
-    adminList: ['user3', 'user4'],
-    createdAt: new Date('2023-04-20'),
-    posts: [
-      {
-        id: 'post1',
-        title: 'API Refactor',
-        content: 'We need to update our endpoints to use GraphQL',
-        creator: 'user3',
-        createdAt: new Date('2023-05-01'),
-        updatedAt: new Date('2023-05-05')
-      }
-    ]
-  }
-];
+import useWorkspaceStore from '../../../store/workspaceStore';
+import useAuthStore from '../../../store/authStore';
 
 const Workspaces = () => {
   const { colors } = useTheme();
   const [fabOpen, setFabOpen] = useState(false);
   const [fabVisible, setFabVisible] = useState(true);
-  const [visible, setVisible] = useState(false);
+  const [tokenVisible, setTokenVisible] = useState(false);
+  const [tokenName, setTokenName] = useState('');
+  const { joinWorkspace } = useWorkspaceStore()
+
+  /**
+   * has data
+   */
+  const workspaces = useWorkspaceStore(state => state.workspaces);
 
   const formatDate = (date) => {
-    return date.toLocaleDateString('en-US', {
+    return date.created_at.toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
       day: 'numeric'
@@ -60,15 +28,63 @@ const Workspaces = () => {
   };
 
   // Function to handle workspace click
-  const clickWorkspace = (workspaceId) => {
-    console.log(`Clicked on workspace: ${workspaceId}`);
+  const clickWorkspace = (workspace) => {
+    console.log("workspace ", workspace)
     router.push({
       pathname: '/workspace/[id]',
       params: {
-        id: workspaceId
+        id: workspace.id,
+        workspace: JSON.stringify(workspace)
       }
     });
     // Navigate to workspace details or perform any action
+  };
+
+  const addNewWorkspace = () => {
+    // Generate a temporary ID (will be replaced with real Firestore ID later)
+    const tempId = `temp-${Date.now()}`;
+
+    const user = useAuthStore.getState().user;
+    
+    // Create example workspace data
+    const newWorkspace = {
+      id: tempId,
+      name: "New Workspace",
+      description: "Write your description here...",
+      owner: user.username,
+      image: 'https://picsum.photos/seed/workspace1/200',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    // Navigate to edit screen with the new todo
+    router.push({
+      pathname: '/editWorkspace/[id]',
+      params: {
+        id: tempId,
+        workspace: JSON.stringify(newWorkspace),
+        isNew: "true" // Add flag to indicate this is a new todo
+      }
+    });
+  };
+
+  const handleTokenSubmit = async () => {
+    if (!tokenName.trim()) {
+      Alert.alert('Error', 'Please enter a token name');
+      return;
+    }
+    setTokenVisible(false);
+    setTokenName('');
+
+    const user = useAuthStore.getState().user
+    console.log("getting the group");
+    const success = await joinWorkspace(tokenName, user.uid);
+
+    if (success) {
+      Alert.alert('Success', `Joined new group.`);
+    } else {
+      Alert.alert('Failed', `Token may be false or expired.`);
+    }
   };
 
   // Floating Action Button actions
@@ -76,14 +92,14 @@ const Workspaces = () => {
     {
       icon: 'plus',
       label: 'Add Workspace',
-      onPress: () => console.log('Add workspace'),
+      onPress: () => addNewWorkspace(),
       color: colors.primary,
       style: { backgroundColor: colors.surface }
     },
     {
       icon: 'account-multiple-plus',
       label: 'Join Workspace',
-      onPress: () =>  setVisible(true),
+      onPress: () => setTokenVisible(true),
       color: colors.primary,
       style: { backgroundColor: colors.surface }
     },
@@ -97,86 +113,74 @@ const Workspaces = () => {
   return (
     <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.header}>
-        <Title style={styles.heading}>Workspace List</Title>
+        <Text style={[styles.heading, { color: colors.onBackground }]}>
+          Your Workspaces
+        </Text>
       </View>
 
       <Divider style={{ marginVertical: 10 }} />
 
-      {mockWorkspaces.map((workspace) => (
-        <ThemedCard 
-          key={workspace.id} 
-          onPress={() => clickWorkspace(workspace.id)}
-          style={styles.workspaceCard}
+      {workspaces.map((workspace) => (
+        <Pressable
+          key={workspace.id}
+          onPress={() => clickWorkspace(workspace)}
+          style={({ pressed }) => [
+            styles.workspaceCard,
+            {
+              backgroundColor: colors.surface,
+              opacity: pressed ? 0.8 : 1,
+              elevation: pressed ? 1 : 3,
+            }
+          ]}
+          android_ripple={{ color: colors.primary }}
         >
           <View style={styles.cardContent}>
-            <Avatar.Image 
-              source={{ uri: workspace.image }} 
-              size={60}
+            <Image
+              source={{ uri: workspace.image || 'https://picsum.photos/200' }}
               style={styles.workspaceImage}
             />
             <View style={styles.textContainer}>
-              <Title style={styles.workspaceTitle}>{workspace.title}</Title>
-              <Paragraph style={styles.workspaceDescription}>
+              <Text style={[styles.workspaceTitle, { color: colors.onSurface }]}>
+                {workspace.name}
+              </Text>
+              <Text
+                style={[styles.workspaceDescription, { color: colors.onSurfaceVariant }]}
+                numberOfLines={2}
+              >
                 {workspace.description}
-              </Paragraph>
+              </Text>
               <View style={styles.metaContainer}>
-                <Text style={styles.metaText}>
-                  {workspace.posts.length} posts • Created {formatDate(workspace.createdAt)}
+                <Text style={[styles.metaText, { color: colors.outline }]}>
+                  Created {formatDate(workspace)}
                 </Text>
-                <View style={styles.adminContainer}>
-                  <Text style={styles.adminText}>
-                    Admins: {workspace.adminList.join(', ')}
-                  </Text>
-                </View>
+                <Text style={[styles.adminText, { color: colors.outline }]}>
+                  Owner: {workspace.owner}
+                </Text>
               </View>
             </View>
           </View>
-        </ThemedCard>
+        </Pressable>
       ))}
 
-      {/* Floating Form */}
-      {visible && (
-        <KeyboardAvoidingView 
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.keyboardAvoidView}
-        >
-          <Surface style={[styles.formSurface, { backgroundColor: colors.surface }]}>
-            <Text variant="titleMedium" style={styles.title}>
-              Join a Workspace
-            </Text>
-            
-            <TextInput
+      {/* Token Popup */}
+      <Portal>
+        <Dialog visible={tokenVisible} onDismiss={() => setTokenVisible(false)}>
+          <Dialog.Title>Enter Join Token</Dialog.Title>
+          <Dialog.Content>
+            <PaperTextInput
+              label="Token Name"
+              value={tokenName}
+              onChangeText={setTokenName}
               mode="outlined"
-              label="Workspace Token"
-              placeholder="Enter invite token"
-              value={''}
-              style={styles.input}
               autoFocus
             />
-
-            <View style={styles.buttonRow}>
-              <Button 
-                mode="outlined" 
-                onPress={() => setVisible(false)}
-                style={styles.button}
-              >
-                Cancel
-              </Button>
-              
-              <Button 
-                mode="contained" 
-                onPress={() => {
-                  console.log('Joining with token:', token);
-                  setVisible(false);
-                }}
-                style={styles.button}
-              >
-                Join
-              </Button>
-            </View>
-          </Surface>
-        </KeyboardAvoidingView>
-      )}
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setTokenVisible(false)}>Cancel</Button>
+            <Button onPress={() => handleTokenSubmit()}>Enter</Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
 
       <Portal>
         <FAB.Group
@@ -199,9 +203,6 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     marginBottom: 8,
   },
   heading: {
@@ -209,13 +210,19 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   workspaceCard: {
+    borderRadius: 12,
     marginBottom: 16,
+    overflow: 'hidden',
   },
   cardContent: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    padding: 16,
+    alignItems: 'center',
   },
   workspaceImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     marginRight: 16,
   },
   textContainer: {
@@ -227,24 +234,19 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   workspaceDescription: {
-    color: '#666',
+    fontSize: 14,
     marginBottom: 8,
+    lineHeight: 20,
   },
   metaContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    flexWrap: 'wrap',
   },
   metaText: {
     fontSize: 12,
-    color: '#888',
-  },
-  adminContainer: {
-    marginTop: 4,
   },
   adminText: {
     fontSize: 12,
-    color: '#555',
     fontStyle: 'italic',
   },
 });

@@ -117,6 +117,11 @@ const useAuthStore = create(
         }
       },
 
+      updateProfile: async (uid, updates) => {
+        await FirebaseUser.updateProfile(uid, updates);
+        set({ user: {...get().user, ...updates} });
+      },
+
       // For error clearing
       clearError: () => set({ error: null }),
 

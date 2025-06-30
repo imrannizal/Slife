@@ -1,92 +1,42 @@
-import { useState, useEffect } from 'react';
 import { View, StyleSheet, Image } from 'react-native';
-import { Avatar, Button, Card, Text, useTheme } from 'react-native-paper';
+import { Button, Card, Text, useTheme } from 'react-native-paper';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
-import { useAuthStore } from '../../store/authStore';
+import useAuthStore from '../../store/authStore';
+import { useState } from 'react';
 
 const ProfileScreen = () => {
   const { colors } = useTheme();
-  const [user, setUser] = useState(null);
-  const [email, setEmail] = useState(null);
-  const [createdAt, setCreatedAt] = useState(null);
-  const [profilePicture, setProfilePicture] = useState(null);
+  const user = useAuthStore(state => state.user);
+  const [userData, setUserData] = useState(user);
 
-  useEffect(() => {
-    const loadUser = async () => {
-      try {
-        const userDataString = await AsyncStorage.getItem('user');
-
-        if (userDataString) {
-          const userData = JSON.parse(userDataString);
-          setUser(userData.username);
-          setEmail(userData.email);
-          setProfilePicture(userData.profile_picture);
-          
-          // Convert Firebase Timestamp to Date
-          if (userData.created_at && userData.created_at.seconds) {
-            const firebaseTimestamp = userData.created_at;
-            const jsDate = new Date(firebaseTimestamp.seconds * 1000 + firebaseTimestamp.nanoseconds / 1000000);
-            setCreatedAt(jsDate);
-          }
-        }
-      } catch {
-        console.error("Problem with handling user data.");
-      }
-    };
-
-    loadUser();
-  }, []);
-
-  const getMemberSince = () => {
-  if (!createdAt) return "Unknown";
-  
-  return createdAt.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-  });
-};
+  const getMemberSince = (date) => {
+    return new Date(date.seconds * 1000).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+    });
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <Card style={[styles.profileCard, { elevation: 4 }]}>
         <Card.Content style={styles.cardContent}>
-          
+
           <View style={styles.avatarShadow}>
-            {profilePicture ? (
-              typeof profilePicture === 'string' ? (
-                profilePicture.startsWith('http') ? (
-                  <Image
-                    source={{ uri: profilePicture }}
-                    style={styles.avatar}
-                  />
-                ) : (
-                  <Avatar.Text
-                    size={100}
-                    label={profilePicture[0]?.toUpperCase() || 'U'}
-                    style={[styles.avatarPlaceholder, { backgroundColor: colors.primary }]}
-                  />
-                )
-              ) : null
-            ) : (
-              <Avatar.Text
-                size={100}
-                label={user ? user[0]?.toUpperCase() : 'U'}
-                style={[styles.avatarPlaceholder, { backgroundColor: colors.primary }]}
-              />
-            )}
+            <Image
+              source={{uri : userData.profile_picture ? userData.profile_picture : "https://picsum.photos/200/300.jpg"}}
+              style={styles.avatar}
+            />
           </View>
 
-
           <Text variant="headlineMedium" style={[styles.username, { color: colors.primary, marginTop: 16 }]}>
-            {user || 'Username'}
+            {userData.username}
           </Text>
 
           {/* Divider */}
           <View style={[styles.divider, { backgroundColor: colors.outline }]} />
 
-          {/* User information section */}
+          {/* User info section */}
           <View style={styles.infoContainer}>
             <View style={styles.infoItem}>
               <MaterialCommunityIcons name="email-outline" size={20} color={colors.onSurface} style={styles.icon} />
@@ -95,7 +45,7 @@ const ProfileScreen = () => {
                   Email
                 </Text>
                 <Text variant="bodyMedium" style={{ color: colors.onSurface }}>
-                  {email || 'email@example.com'}
+                  {userData.email}
                 </Text>
               </View>
             </View>
@@ -107,7 +57,7 @@ const ProfileScreen = () => {
                   Member since
                 </Text>
                 <Text variant="bodyMedium" style={{ color: colors.onSurface }}>
-                  {getMemberSince() || 'Unknown'}
+                  {getMemberSince(userData.created_at)}
                 </Text>
               </View>
             </View>
@@ -115,11 +65,11 @@ const ProfileScreen = () => {
         </Card.Content>
       </Card>
 
-      {/* Action buttons */}
+      {/* Action button */}
       <View style={styles.actionsContainer}>
-        <Button 
-          mode="contained" 
-          onPress={() => router.push('/profile/edit')}
+        <Button
+          mode="contained"
+          onPress={() => router.push('/editProfile')}
           style={[styles.button, { backgroundColor: colors.primary }]}
           contentStyle={styles.buttonContent}
           labelStyle={styles.buttonLabel}

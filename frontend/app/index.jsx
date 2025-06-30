@@ -6,6 +6,7 @@ import { useRouter } from 'expo-router';
 import useAuthStore from '../store/authStore';
 import useNoteStore from '../store/noteStore';
 import useTodoStore from '../store/todoStore';
+import useWorkspaceStore from '../store/workspaceStore';
 
 export default function SplashScreen() {
   const router = useRouter();
@@ -22,6 +23,7 @@ export default function SplashScreen() {
       if (userData != null) {
         await useNoteStore.getState().fetchNotes(userData.username);
         await useTodoStore.getState().fetchTodos(userData.username);
+        await useWorkspaceStore.getState().fetchWorkspaces(userData.uid);
         router.replace('/todos');
       } else {
         router.replace('/login'); // Navigate to login page
